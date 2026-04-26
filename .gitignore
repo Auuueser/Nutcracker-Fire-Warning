@@ -1,0 +1,11 @@
+bin/
+obj/
+tmpbin/
+tmpobj/
+*.user
+*.suo
+*.cache
+*.log
+.vs/
+.idea/
+*.csproj.AssemblyReference.cache
