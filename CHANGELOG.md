@@ -2,6 +2,12 @@
 
 All notable changes to Nutcracker Fire Warning are documented in this file.
 
+## 1.0.3
+
+- Fixed `EnableUiFireWindow=false` so it hides the entire world-space side warning bar instead of only disabling the final red-white pulse.
+- Allowed `PreAimMaxDistance=0` or lower to disable the yellow pre-aim danger bar.
+- Updated config descriptions to match the actual UI behavior.
+
 ## 1.0.2
 
 - Renamed the plugin to Nutcracker Fire Warning.

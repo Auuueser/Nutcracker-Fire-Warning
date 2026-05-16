@@ -42,7 +42,7 @@ internal static class NutcrackerShotConfig
             "Warnings",
             "EnableUiFireWindow",
             true,
-            "Show the FIRE text and red-white pulse on the side bar during the final shot window.");
+            "Show the world-space side warning bar, including countdown, FIRE pulse, reload bar, and pre-aim danger bar.");
 
         EnableModelOutlineFireWindow = config.Bind(
             "Warnings",
@@ -108,7 +108,7 @@ internal static class NutcrackerShotConfig
             "Warnings",
             "PreAimMaxDistance",
             30f,
-            "Maximum distance for the yellow pre-aim danger bar.");
+            "Maximum distance for the yellow pre-aim danger bar. Set to 0 or lower to disable the pre-aim bar.");
 
         MonitorActiveScanInterval = config.Bind(
             "Performance",

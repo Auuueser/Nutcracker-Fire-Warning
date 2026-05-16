@@ -270,6 +270,12 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
 
     private void UpdateState()
     {
+        bool uiEnabled = IsUiFireWindowEnabled();
+        if (!uiEnabled)
+        {
+            HideUiElements();
+        }
+
         switch (state)
         {
             case WarningState.Aiming:
@@ -282,7 +288,15 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
                 UpdateTimedState(ReloadColor, reverse: true, hideWhenFinished: true);
                 break;
             default:
-                UpdatePreAim();
+                if (uiEnabled)
+                {
+                    UpdatePreAim();
+                }
+                else
+                {
+                    lastPreAimAmount = 0f;
+                    SetModelFireWindow(false);
+                }
                 break;
         }
     }
@@ -407,7 +421,7 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
         Vector3 toPlayer = playerCameraPosition - shotgunPosition;
         float distance = toPlayer.magnitude;
         float maxDistance = GetPreAimMaxDistance();
-        if (distance > maxDistance)
+        if (maxDistance <= 0f || distance > maxDistance)
         {
             return 0f;
         }
@@ -440,10 +454,24 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
 
     private void SetVisible(bool visible)
     {
-        if (canvas != null && canvas.enabled != visible)
+        bool effectiveVisible = visible && IsUiFireWindowEnabled();
+        if (canvas != null && canvas.enabled != effectiveVisible)
         {
-            canvas.enabled = visible;
+            canvas.enabled = effectiveVisible;
         }
+    }
+
+    private void HideUiElements()
+    {
+        SetVisible(false);
+
+        if (fill != null)
+        {
+            fill.fillAmount = 0f;
+        }
+
+        SetCountdownText(null, Color.white);
+        SetCriticalPulse(0f);
     }
 
     private void SetCountdownText(string text, Color color)
@@ -536,9 +564,13 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
 
     private static float GetPreAimMaxDistance()
     {
-        return NutcrackerShotConfig.PreAimMaxDistance == null
-            ? PreAimMaxDistance
-            : Mathf.Clamp(NutcrackerShotConfig.PreAimMaxDistance.Value, 1f, 100f);
+        if (NutcrackerShotConfig.PreAimMaxDistance == null)
+        {
+            return PreAimMaxDistance;
+        }
+
+        float configuredDistance = NutcrackerShotConfig.PreAimMaxDistance.Value;
+        return configuredDistance <= 0f ? 0f : Mathf.Clamp(configuredDistance, 1f, 100f);
     }
 
     private static float GetModelWarningMaxDistance()

@@ -65,7 +65,7 @@ BepInEx\config\aueser.lethalcompany.nutcrackerfirewarning.cfg
 
 ### Warnings
 
-- `EnableUiFireWindow`: Enables the side-bar `FIRE` text and red-white pulse.
+- `EnableUiFireWindow`: Enables the world-space side warning bar, including countdown, `FIRE` pulse, reload bar, and pre-aim danger bar.
 - `EnableModelOutlineFireWindow`: Enables the Nutcracker model warning.
 - `ModelOutlineMode`: Selects `MeshSilhouette` or `ScreenBox`.
 - `ModelPulseMode`: Selects `SourcePulse`, `CloneShell`, or `Both`.
@@ -76,7 +76,7 @@ BepInEx\config\aueser.lethalcompany.nutcrackerfirewarning.cfg
 - `ModelOutlineWidth`: Controls ScreenBox line width and CloneShell expansion width.
 - `MeshOutlineScale`: Extra scale multiplier for CloneShell mode.
 - `FireWindowSeconds`: Seconds before predicted firing when final warnings activate.
-- `PreAimMaxDistance`: Maximum distance for the yellow pre-aim danger bar.
+- `PreAimMaxDistance`: Maximum distance for the yellow pre-aim danger bar. Set to `0` or lower to disable the pre-aim bar.
 
 ### Performance
 

@@ -10,7 +10,7 @@ public sealed class Plugin : BaseUnityPlugin
 {
     public const string PluginGuid = "aueser.lethalcompany.nutcrackerfirewarning";
     public const string PluginName = "Nutcracker Fire Warning";
-    public const string PluginVersion = "1.0.2";
+    public const string PluginVersion = "1.0.3";
 
     internal static ManualLogSource Log { get; private set; }
 
