@@ -48,6 +48,14 @@ internal static class Program
             "Model warning phase is none when model warning is disabled",
             NutcrackerModelWarningPhaseSelector.Select(modelEnabled: false, stateTintEnabled: true, fireWindowActive: true, chaseActive: true) == ModelWarningPhase.None);
 
+        failures += Check(
+            "Default model state tint is enabled",
+            NutcrackerShotConfig.DefaultEnableModelStateTint);
+
+        failures += Check(
+            "Default extra model fire-window overlay is disabled",
+            !NutcrackerShotConfig.DefaultEnableModelOutlineFireWindow);
+
         if (failures > 0)
         {
             Console.Error.WriteLine($"{failures} test(s) failed.");

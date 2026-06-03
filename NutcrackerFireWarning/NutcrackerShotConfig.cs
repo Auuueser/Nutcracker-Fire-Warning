@@ -4,6 +4,9 @@ namespace NutcrackerShotUI;
 
 internal static class NutcrackerShotConfig
 {
+    internal const bool DefaultEnableModelOutlineFireWindow = false;
+    internal const bool DefaultEnableModelStateTint = true;
+
     private static bool useChineseDescriptions;
 
     public static ConfigEntry<bool> EnableMod { get; private set; }
@@ -73,18 +76,18 @@ internal static class NutcrackerShotConfig
         EnableModelOutlineFireWindow = config.Bind(
             "Warnings",
             "EnableModelOutlineFireWindow",
-            true,
+            DefaultEnableModelOutlineFireWindow,
             Description(
-                "Flash a red-white outline around the Nutcracker model during the final shot window.",
-                "在最终开火窗口启用胡桃模型红白脉冲/轮廓预警。"));
+                "Enable the extra fire-window-only model overlay: red-white pulse, clone shell, or screen box depending on ModelOutlineMode and ModelPulseMode. Usually keep this disabled when EnableModelStateTint is enabled.",
+                "启用仅在最终开火窗口出现的额外模型叠加预警：根据 ModelOutlineMode 和 ModelPulseMode 显示红白脉冲、克隆外壳或屏幕框。启用 EnableModelStateTint 时通常保持关闭。"));
 
         EnableModelStateTint = config.Bind(
             "Warnings",
             "EnableModelStateTint",
-            true,
+            DefaultEnableModelStateTint,
             Description(
-                "Tint the Nutcracker model white while it is chasing a target and red during the final fire window.",
-                "胡桃追击目标时将模型染成白色；进入最终开火窗口时将模型染成红色。"));
+                "Enable the recommended model state warning: white while the Nutcracker is chasing a target, red during the final fire window.",
+                "启用推荐的模型状态预警：胡桃追击目标时模型变白，进入最终开火窗口时模型变红。"));
 
         ModelOutlineWidth = config.Bind(
             "Warnings",
@@ -107,8 +110,8 @@ internal static class NutcrackerShotConfig
             "ModelPulseMode",
             NutcrackerShotUI.ModelPulseMode.SourcePulse,
             Description(
-                "Model warning implementation for MeshSilhouette mode. SourcePulse recolors the original model; CloneShell adds a cloned shell; Both enables both.",
-                "MeshSilhouette 模式的模型预警实现。SourcePulse 重染原模型；CloneShell 添加克隆外壳；Both 同时启用两者。"));
+                "Implementation used by the extra fire-window overlay in MeshSilhouette mode. SourcePulse recolors the original model; CloneShell adds a cloned shell; Both enables both.",
+                "MeshSilhouette 模式下额外开火窗口叠加层的实现方式。SourcePulse 重染原模型；CloneShell 添加克隆外壳；Both 同时启用两者。"));
 
         MeshOutlineScale = config.Bind(
             "Warnings",
@@ -123,16 +126,16 @@ internal static class NutcrackerShotConfig
             "ModelPulseIntensity",
             4f,
             Description(
-                "Emission multiplier for model red-white pulse.",
-                "模型红白脉冲的发光强度倍率。"));
+                "Emission multiplier for the extra red-white fire-window overlay.",
+                "额外红白开火窗口叠加层的发光强度倍率。"));
 
         ModelPulseAlpha = config.Bind(
             "Warnings",
             "ModelPulseAlpha",
             0.92f,
             Description(
-                "Alpha used by model red-white pulse colors.",
-                "模型红白脉冲颜色的不透明度。"));
+                "Alpha used by the extra red-white fire-window overlay.",
+                "额外红白开火窗口叠加层的不透明度。"));
 
         ModelChaseTintAlpha = config.Bind(
             "Warnings",

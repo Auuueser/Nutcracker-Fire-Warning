@@ -13,8 +13,8 @@ networking, or game balance.
 - World-space warning bar attached beside each Nutcracker.
 - Countdown during Nutcracker aiming.
 - Red-white final fire-window pulse.
-- Optional Nutcracker model state tint: white while chasing, red during the final fire window.
-- Optional model red-white pulse or outline warning for close-range visibility.
+- Recommended Nutcracker model state tint: white while chasing, red during the final fire window.
+- Optional extra fire-window overlay for red-white pulse, clone shell, or screen-space fallback.
 - Optional screen-space fallback rectangle.
 - Yellow pre-aim danger indicator when the local player is in a dangerous shotgun line.
 - Configurable warning distances, pulse intensity, fire-window timing, and fallback scan intervals.
@@ -69,8 +69,8 @@ BepInEx\config\aueser.lethalcompany.nutcrackerfirewarning.cfg
 
 - `EnableMod`: Enables Nutcracker Fire Warning as a whole. When disabled, warning UI, model warnings, and fallback scans stop running.
 - `EnableUiFireWindow`: Enables the world-space side warning bar, including countdown, `FIRE` pulse, reload bar, and pre-aim danger bar.
-- `EnableModelOutlineFireWindow`: Enables the legacy Nutcracker model fire-window pulse or outline warning.
-- `EnableModelStateTint`: Tints the Nutcracker model white while chasing a target and red during the final fire window.
+- `EnableModelStateTint`: Enables the recommended model state warning. Default: `true`. The model turns white while chasing a target and red during the final fire window.
+- `EnableModelOutlineFireWindow`: Enables an extra fire-window-only model overlay. Default: `false`. Use it only when you also want the old red-white pulse, clone shell, or screen-space fallback.
 - `ModelOutlineMode`: Selects `MeshSilhouette` or `ScreenBox`.
 - `ModelPulseMode`: Selects `SourcePulse`, `CloneShell`, or `Both`.
 - `ModelPulseIntensity`: Controls model pulse emission intensity.

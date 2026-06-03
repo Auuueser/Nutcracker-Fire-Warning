@@ -2,6 +2,12 @@
 
 All notable changes to Nutcracker Fire Warning are documented in this file.
 
+## 1.0.6
+
+- Changed the default model warning setup so `EnableModelStateTint` is enabled and `EnableModelOutlineFireWindow` is disabled for newly generated configs.
+- Clarified config descriptions: `EnableModelStateTint` is the recommended white-chase/red-fire model warning, while `EnableModelOutlineFireWindow` is an optional extra fire-window overlay.
+- Added tests covering the intended default model warning combination.
+
 ## 1.0.5
 
 - Added optional model state tint warnings: white while a Nutcracker is chasing a target, red during the final fire window.
