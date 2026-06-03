@@ -10,7 +10,7 @@ public sealed class Plugin : BaseUnityPlugin
 {
     public const string PluginGuid = "aueser.lethalcompany.nutcrackerfirewarning";
     public const string PluginName = "Nutcracker Fire Warning";
-    public const string PluginVersion = "1.0.3";
+    public const string PluginVersion = "1.0.4";
 
     internal static ManualLogSource Log { get; private set; }
 
@@ -23,7 +23,7 @@ public sealed class Plugin : BaseUnityPlugin
         CreateMonitor();
         harmony = new Harmony(PluginGuid);
         harmony.PatchAll(typeof(Plugin).Assembly);
-        Logger.LogInfo($"{PluginName} {PluginVersion} loaded. UI fire window={NutcrackerShotConfig.EnableUiFireWindow.Value}, model outline={NutcrackerShotConfig.EnableModelOutlineFireWindow.Value}, debug={NutcrackerShotConfig.EnableDebugLogs.Value}.");
+        Logger.LogInfo($"{PluginName} {PluginVersion} loaded. enabled={NutcrackerShotConfig.EnableMod.Value}, UI fire window={NutcrackerShotConfig.EnableUiFireWindow.Value}, model outline={NutcrackerShotConfig.EnableModelOutlineFireWindow.Value}, debug={NutcrackerShotConfig.EnableDebugLogs.Value}.");
     }
 
     private void OnDestroy()

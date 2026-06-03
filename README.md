@@ -65,6 +65,7 @@ BepInEx\config\aueser.lethalcompany.nutcrackerfirewarning.cfg
 
 ### Warnings
 
+- `EnableMod`: Enables Nutcracker Fire Warning as a whole. When disabled, warning UI, model warnings, and fallback scans stop running.
 - `EnableUiFireWindow`: Enables the world-space side warning bar, including countdown, `FIRE` pulse, reload bar, and pre-aim danger bar.
 - `EnableModelOutlineFireWindow`: Enables the Nutcracker model warning.
 - `ModelOutlineMode`: Selects `MeshSilhouette` or `ScreenBox`.
@@ -80,8 +81,8 @@ BepInEx\config\aueser.lethalcompany.nutcrackerfirewarning.cfg
 
 ### Performance
 
-- `MonitorActiveScanInterval`: Fallback monitor scan interval while Nutcrackers are present.
-- `MonitorIdleScanInterval`: Fallback monitor scan interval while no Nutcrackers are present.
+- `MonitorActiveScanInterval`: Fallback monitor scan interval while Nutcrackers are present. Default: `0.5`.
+- `MonitorIdleScanInterval`: Fallback monitor scan interval while no Nutcrackers are present. Default: `2.0`.
 
 ### Debug
 

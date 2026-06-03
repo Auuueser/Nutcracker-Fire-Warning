@@ -1,14 +1,9 @@
-using System.Reflection;
 using UnityEngine;
 
 namespace NutcrackerShotUI;
 
 internal sealed class NutcrackerShotMonitor : MonoBehaviour
 {
-    private static readonly FieldInfo AimingGunField = typeof(NutcrackerEnemyAI).GetField("aimingGun", BindingFlags.Instance | BindingFlags.NonPublic);
-    private static readonly FieldInfo ReloadingGunField = typeof(NutcrackerEnemyAI).GetField("reloadingGun", BindingFlags.Instance | BindingFlags.NonPublic);
-    private static readonly FieldInfo TimeSinceFiringGunField = typeof(NutcrackerEnemyAI).GetField("timeSinceFiringGun", BindingFlags.Instance | BindingFlags.NonPublic);
-
     private float nextScanTime;
     private int lastObservedCount = -1;
 
@@ -19,6 +14,12 @@ internal sealed class NutcrackerShotMonitor : MonoBehaviour
 
     private void Update()
     {
+        if (!NutcrackerShotConfig.IsModEnabled())
+        {
+            nextScanTime = Time.time + GetConfigInterval(NutcrackerShotConfig.MonitorIdleScanInterval, 2f);
+            return;
+        }
+
         if (Time.time < nextScanTime)
         {
             return;
@@ -41,46 +42,26 @@ internal sealed class NutcrackerShotMonitor : MonoBehaviour
                 continue;
             }
 
-            bool aimingGun = ReadBool(AimingGunField, nutcracker);
-            bool reloadingGun = ReadBool(ReloadingGunField, nutcracker);
-            float timeSinceFiringGun = ReadFloat(TimeSinceFiringGunField, nutcracker);
+            if (!NutcrackerCombatStateReader.TryRead(nutcracker, out NutcrackerCombatState combatState))
+            {
+                continue;
+            }
 
-            NutcrackerShotIndicator.For(nutcracker)
-                .ObserveCombatState(aimingGun, reloadingGun, timeSinceFiringGun, GetAimDuration(nutcracker));
+            NutcrackerShotIndicator indicator = NutcrackerShotIndicator.GetExisting(nutcracker);
+            if (indicator == null && NutcrackerShotIndicator.ShouldCreateForCombatState(nutcracker, combatState))
+            {
+                indicator = NutcrackerShotIndicator.For(nutcracker);
+            }
+
+            indicator?.ObserveCombatState(combatState);
         }
-    }
-
-    private static float GetAimDuration(NutcrackerEnemyAI nutcracker)
-    {
-        if (nutcracker.enemyHP <= 1)
-        {
-            return 0.5f;
-        }
-
-        ShotgunItem gun = nutcracker.gun;
-        if (gun != null && gun.shellsLoaded == 1)
-        {
-            return 1.3f;
-        }
-
-        return 1.75f;
-    }
-
-    private static bool ReadBool(FieldInfo field, NutcrackerEnemyAI instance)
-    {
-        return field != null && field.GetValue(instance) is bool value && value;
-    }
-
-    private static float ReadFloat(FieldInfo field, NutcrackerEnemyAI instance)
-    {
-        return field != null && field.GetValue(instance) is float value ? value : 0f;
     }
 
     private static float GetNextScanInterval(int observedCount)
     {
         float interval = observedCount > 0
-            ? GetConfigInterval(NutcrackerShotConfig.MonitorActiveScanInterval, 0.1f)
-            : GetConfigInterval(NutcrackerShotConfig.MonitorIdleScanInterval, 0.75f);
+            ? GetConfigInterval(NutcrackerShotConfig.MonitorActiveScanInterval, 0.5f)
+            : GetConfigInterval(NutcrackerShotConfig.MonitorIdleScanInterval, 2f);
 
         return Mathf.Clamp(interval, 0.02f, 5f);
     }

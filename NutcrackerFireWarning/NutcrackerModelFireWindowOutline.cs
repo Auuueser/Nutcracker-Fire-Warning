@@ -16,6 +16,7 @@ internal sealed class NutcrackerModelFireWindowOutline
     private readonly Material meshMaterial;
     private readonly List<MeshOutlineClone> meshClones = new List<MeshOutlineClone>();
     private readonly List<SourceRendererPulse> sourcePulses = new List<SourceRendererPulse>();
+    private readonly List<Renderer> eligibleRenderers = new List<Renderer>();
 
     private GameObject screenRoot;
     private Canvas screenCanvas;
@@ -141,13 +142,9 @@ internal sealed class NutcrackerModelFireWindowOutline
             return;
         }
 
-        for (int i = 0; i < cachedRenderers.Length; i++)
+        for (int i = 0; i < eligibleRenderers.Count; i++)
         {
-            Renderer renderer = cachedRenderers[i];
-            if (!IsModelOutlineRenderer(renderer))
-            {
-                continue;
-            }
+            Renderer renderer = eligibleRenderers[i];
 
             if (ShouldUseCloneShell())
             {
@@ -218,7 +215,7 @@ internal sealed class NutcrackerModelFireWindowOutline
                 }
             }
 
-            Plugin.Log.LogInfo($"Nutcracker model audit renderer[{i}]: type={renderer.GetType().Name}, eligible={IsModelOutlineRenderer(renderer)}, path={GetPath(renderer.transform)}, mesh={meshName}, vertices={vertexCount}, subMeshes={subMeshCount}, materials={renderer.sharedMaterials.Length}");
+            Plugin.Log.LogInfo($"Nutcracker model audit renderer[{i}]: type={GetRendererTypeName(renderer)}, eligible={IsModelOutlineRenderer(renderer)}, path={GetPath(renderer.transform)}, mesh={meshName}, vertices={vertexCount}, subMeshes={subMeshCount}, materials={renderer.sharedMaterials.Length}");
         }
     }
 
@@ -470,38 +467,20 @@ internal sealed class NutcrackerModelFireWindowOutline
     {
         Vector3 min = bounds.min;
         Vector3 max = bounds.max;
-        Vector3[] corners =
-        {
-            new Vector3(min.x, min.y, min.z),
-            new Vector3(max.x, min.y, min.z),
-            new Vector3(min.x, max.y, min.z),
-            new Vector3(max.x, max.y, min.z),
-            new Vector3(min.x, min.y, max.z),
-            new Vector3(max.x, min.y, max.z),
-            new Vector3(min.x, max.y, max.z),
-            new Vector3(max.x, max.y, max.z)
-        };
-
         float minX = float.MaxValue;
         float minY = float.MaxValue;
         float maxX = float.MinValue;
         float maxY = float.MinValue;
         bool anyVisible = false;
 
-        for (int i = 0; i < corners.Length; i++)
-        {
-            Vector3 screen = camera.WorldToScreenPoint(corners[i]);
-            if (screen.z <= 0.01f)
-            {
-                continue;
-            }
-
-            anyVisible = true;
-            minX = Mathf.Min(minX, screen.x);
-            minY = Mathf.Min(minY, screen.y);
-            maxX = Mathf.Max(maxX, screen.x);
-            maxY = Mathf.Max(maxY, screen.y);
-        }
+        ProjectCorner(camera, new Vector3(min.x, min.y, min.z), ref anyVisible, ref minX, ref minY, ref maxX, ref maxY);
+        ProjectCorner(camera, new Vector3(max.x, min.y, min.z), ref anyVisible, ref minX, ref minY, ref maxX, ref maxY);
+        ProjectCorner(camera, new Vector3(min.x, max.y, min.z), ref anyVisible, ref minX, ref minY, ref maxX, ref maxY);
+        ProjectCorner(camera, new Vector3(max.x, max.y, min.z), ref anyVisible, ref minX, ref minY, ref maxX, ref maxY);
+        ProjectCorner(camera, new Vector3(min.x, min.y, max.z), ref anyVisible, ref minX, ref minY, ref maxX, ref maxY);
+        ProjectCorner(camera, new Vector3(max.x, min.y, max.z), ref anyVisible, ref minX, ref minY, ref maxX, ref maxY);
+        ProjectCorner(camera, new Vector3(min.x, max.y, max.z), ref anyVisible, ref minX, ref minY, ref maxX, ref maxY);
+        ProjectCorner(camera, new Vector3(max.x, max.y, max.z), ref anyVisible, ref minX, ref minY, ref maxX, ref maxY);
 
         if (!anyVisible)
         {
@@ -524,6 +503,21 @@ internal sealed class NutcrackerModelFireWindowOutline
         return true;
     }
 
+    private static void ProjectCorner(Camera camera, Vector3 corner, ref bool anyVisible, ref float minX, ref float minY, ref float maxX, ref float maxY)
+    {
+        Vector3 screen = camera.WorldToScreenPoint(corner);
+        if (screen.z <= 0.01f)
+        {
+            return;
+        }
+
+        anyVisible = true;
+        minX = Mathf.Min(minX, screen.x);
+        minY = Mathf.Min(minY, screen.y);
+        maxX = Mathf.Max(maxX, screen.x);
+        maxY = Mathf.Max(maxY, screen.y);
+    }
+
     private bool TryGetBounds(out Bounds bounds)
     {
         RefreshRenderersIfNeeded(force: false);
@@ -535,10 +529,10 @@ internal sealed class NutcrackerModelFireWindowOutline
             return false;
         }
 
-        for (int i = 0; i < cachedRenderers.Length; i++)
+        for (int i = 0; i < eligibleRenderers.Count; i++)
         {
-            Renderer renderer = cachedRenderers[i];
-            if (!IsModelOutlineRenderer(renderer) || !renderer.enabled)
+            Renderer renderer = eligibleRenderers[i];
+            if (renderer == null || !renderer.enabled)
             {
                 continue;
             }
@@ -565,6 +559,17 @@ internal sealed class NutcrackerModelFireWindowOutline
         }
 
         cachedRenderers = nutcracker.GetComponentsInChildren<Renderer>(includeInactive: false);
+        eligibleRenderers.Clear();
+
+        for (int i = 0; i < cachedRenderers.Length; i++)
+        {
+            Renderer renderer = cachedRenderers[i];
+            if (IsModelOutlineRenderer(renderer))
+            {
+                eligibleRenderers.Add(renderer);
+            }
+        }
+
         nextRendererRefreshTime = Time.time + 1f;
     }
 
@@ -639,7 +644,7 @@ internal sealed class NutcrackerModelFireWindowOutline
 
     private static bool IsModelOutlineRenderer(Renderer renderer)
     {
-        if (renderer == null || renderer is LineRenderer || renderer.GetType().Name == "ParticleSystemRenderer")
+        if (renderer == null || renderer is LineRenderer || renderer is ParticleSystemRenderer)
         {
             return false;
         }
@@ -650,7 +655,7 @@ internal sealed class NutcrackerModelFireWindowOutline
         }
 
         string path = GetPath(renderer.transform);
-        if (ContainsAny(path, "MapDot", "ScanNode", "BloodSpurtParticle", "Collider"))
+        if (ContainsAny(path, "MapDot", "ScanNode", "BloodSpurtParticle", "Collider", "NutcrackerMeshOutline", "NutcrackerFireWindow"))
         {
             return false;
         }
@@ -670,6 +675,31 @@ internal sealed class NutcrackerModelFireWindowOutline
 
         string staticMeshName = filter.sharedMesh.name;
         return ContainsAny(path, "Gun", "Shotgun") || ContainsAny(staticMeshName, "Gun", "Shotgun");
+    }
+
+    private static string GetRendererTypeName(Renderer renderer)
+    {
+        if (renderer is SkinnedMeshRenderer)
+        {
+            return nameof(SkinnedMeshRenderer);
+        }
+
+        if (renderer is MeshRenderer)
+        {
+            return nameof(MeshRenderer);
+        }
+
+        if (renderer is ParticleSystemRenderer)
+        {
+            return nameof(ParticleSystemRenderer);
+        }
+
+        if (renderer is LineRenderer)
+        {
+            return nameof(LineRenderer);
+        }
+
+        return nameof(Renderer);
     }
 
     private static bool ContainsAny(string value, params string[] fragments)

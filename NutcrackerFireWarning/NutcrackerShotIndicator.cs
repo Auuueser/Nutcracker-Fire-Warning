@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using GameNetcodeStuff;
 using UnityEngine;
 using UnityEngine.UI;
@@ -13,12 +14,17 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
     private const float FiredHoldTime = 0.35f;
     private const float DefaultCriticalAimWindow = 0.35f;
     private const float PreAimMaxDistance = 30f;
+    private const float PreAimCheckInterval = 0.12f;
+    private const float PreAimAngleDegrees = 35f;
 
     private static readonly Color BackgroundColor = new Color(0.02f, 0.02f, 0.02f, 0.55f);
     private static readonly Color PreAimColor = new Color(1f, 0.72f, 0.12f, 0.55f);
     private static readonly Color AimColor = new Color(1f, 0.12f, 0.06f, 0.92f);
     private static readonly Color FiredColor = new Color(1f, 1f, 1f, 0.96f);
     private static readonly Color ReloadColor = new Color(0.2f, 0.65f, 1f, 0.55f);
+    private static readonly float PreAimMinimumDot = Mathf.Cos(PreAimAngleDegrees * Mathf.Deg2Rad);
+    private static readonly string[] CountdownLabels = CreateCountdownLabels();
+    private static readonly Dictionary<NutcrackerEnemyAI, NutcrackerShotIndicator> Indicators = new Dictionary<NutcrackerEnemyAI, NutcrackerShotIndicator>();
 
     private NutcrackerEnemyAI nutcracker;
     private Canvas canvas;
@@ -33,17 +39,19 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
     private float stateStartedAt;
     private float stateDuration;
     private float lastPreAimAmount;
+    private float nextPreAimCheckTime;
+    private float cachedPreAimDanger;
     private bool observedAimingLastFrame;
     private bool observedReloadingLastFrame;
 
     public static NutcrackerShotIndicator For(NutcrackerEnemyAI nutcracker)
     {
-        if (nutcracker == null)
+        if (!NutcrackerShotConfig.IsModEnabled() || nutcracker == null)
         {
             return null;
         }
 
-        NutcrackerShotIndicator indicator = nutcracker.GetComponentInChildren<NutcrackerShotIndicator>(true);
+        NutcrackerShotIndicator indicator = GetExisting(nutcracker);
         if (indicator != null)
         {
             return indicator;
@@ -53,7 +61,47 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
         holder.transform.SetParent(nutcracker.transform, worldPositionStays: false);
         indicator = holder.AddComponent<NutcrackerShotIndicator>();
         indicator.Initialize(nutcracker);
+        Indicators[nutcracker] = indicator;
         return indicator;
+    }
+
+    public static NutcrackerShotIndicator GetExisting(NutcrackerEnemyAI nutcracker)
+    {
+        if (nutcracker == null)
+        {
+            return null;
+        }
+
+        if (Indicators.TryGetValue(nutcracker, out NutcrackerShotIndicator indicator))
+        {
+            if (indicator != null)
+            {
+                return indicator;
+            }
+
+            Indicators.Remove(nutcracker);
+        }
+
+        return null;
+    }
+
+    public static bool ShouldCreateForCombatState(NutcrackerEnemyAI nutcracker, NutcrackerCombatState combatState)
+    {
+        if (!NutcrackerShotConfig.IsModEnabled() || nutcracker == null || nutcracker.isEnemyDead)
+        {
+            return false;
+        }
+
+        if (combatState.AimingGun || combatState.ReloadingGun)
+        {
+            return true;
+        }
+
+        return IsUiFireWindowEnabled()
+            && GetPreAimMaxDistance() > 0f
+            && nutcracker.currentBehaviourStateIndex == 2
+            && nutcracker.gun != null
+            && nutcracker.gun.shellsLoaded > 0;
     }
 
     public static void Remove(NutcrackerEnemyAI nutcracker)
@@ -63,15 +111,21 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
             return;
         }
 
-        NutcrackerShotIndicator indicator = nutcracker.GetComponentInChildren<NutcrackerShotIndicator>(true);
+        NutcrackerShotIndicator indicator = GetExisting(nutcracker);
         if (indicator != null)
         {
+            Indicators.Remove(nutcracker);
             Destroy(indicator.gameObject);
         }
     }
 
     public void BeginAim(float duration)
     {
+        if (!NutcrackerShotConfig.IsModEnabled())
+        {
+            return;
+        }
+
         if (duration <= 0f)
         {
             duration = 0.5f;
@@ -90,6 +144,11 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
 
     public void MarkFired()
     {
+        if (!NutcrackerShotConfig.IsModEnabled())
+        {
+            return;
+        }
+
         state = WarningState.Fired;
         stateStartedAt = Time.time;
         stateDuration = FiredHoldTime;
@@ -103,6 +162,11 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
 
     public void BeginReload(float duration)
     {
+        if (!NutcrackerShotConfig.IsModEnabled())
+        {
+            return;
+        }
+
         state = WarningState.Reloading;
         stateStartedAt = Time.time;
         stateDuration = duration;
@@ -111,6 +175,11 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
 
     public void ObserveCombatState(bool aimingGun, bool reloadingGun, float timeSinceFiringGun, float aimDuration)
     {
+        if (!NutcrackerShotConfig.IsModEnabled())
+        {
+            return;
+        }
+
         if (aimingGun)
         {
             float duration = Mathf.Max(0.05f, aimDuration);
@@ -145,6 +214,11 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
         observedReloadingLastFrame = reloadingGun;
     }
 
+    public void ObserveCombatState(NutcrackerCombatState combatState)
+    {
+        ObserveCombatState(combatState.AimingGun, combatState.ReloadingGun, combatState.TimeSinceFiringGun, combatState.AimDuration);
+    }
+
     private void Initialize(NutcrackerEnemyAI owner)
     {
         nutcracker = owner;
@@ -156,6 +230,11 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
     private void OnDestroy()
     {
         modelOutline?.Dispose();
+
+        if (nutcracker != null && Indicators.TryGetValue(nutcracker, out NutcrackerShotIndicator indicator) && indicator == this)
+        {
+            Indicators.Remove(nutcracker);
+        }
     }
 
     private void OnDisable()
@@ -165,13 +244,17 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (nutcracker == null || nutcracker.isEnemyDead)
+        if (!NutcrackerShotConfig.IsModEnabled() || nutcracker == null || nutcracker.isEnemyDead)
         {
             Destroy(gameObject);
             return;
         }
 
-        UpdateTransform();
+        if (IsUiFireWindowEnabled())
+        {
+            UpdateTransform();
+        }
+
         UpdateState();
     }
 
@@ -310,10 +393,19 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
     {
         float elapsed = Time.time - stateStartedAt;
         float progress = Mathf.Clamp01(elapsed / Mathf.Max(0.01f, stateDuration));
-        fill.color = color;
-        fill.fillAmount = reverse ? 1f - progress : progress;
-        SetCountdownText(null, Color.white);
-        SetCriticalPulse(0f);
+
+        if (IsUiFireWindowEnabled())
+        {
+            fill.color = color;
+            fill.fillAmount = reverse ? 1f - progress : progress;
+            SetCountdownText(null, Color.white);
+            SetCriticalPulse(0f);
+        }
+        else
+        {
+            HideUiElements();
+        }
+
         SetModelFireWindow(false);
 
         if (progress >= 1f)
@@ -334,41 +426,48 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
         float remaining = Mathf.Max(0f, duration - elapsed);
         float fireWindowSeconds = GetFireWindowSeconds();
         float criticalAmount = 1f - Mathf.Clamp01(remaining / fireWindowSeconds);
+        bool uiEnabled = IsUiFireWindowEnabled();
 
-        fill.fillAmount = progress;
-        fill.color = Color.Lerp(AimColor, FiredColor, criticalAmount * 0.45f);
+        if (uiEnabled)
+        {
+            fill.fillAmount = progress;
+            fill.color = Color.Lerp(AimColor, FiredColor, criticalAmount * 0.45f);
+        }
+        else
+        {
+            HideUiElements();
+        }
 
         if (remaining <= fireWindowSeconds)
         {
             SetModelFireWindow(ShouldShowModelFireWindow());
 
-            if (IsUiFireWindowEnabled())
+            if (uiEnabled)
             {
                 float pulse = 0.45f + Mathf.PingPong(Time.time * 12f, 0.55f);
                 SetCriticalPulse(pulse);
                 SetCountdownText("FIRE", Color.Lerp(AimColor, FiredColor, pulse));
             }
-            else
-            {
-                SetCriticalPulse(0f);
-                SetCountdownText(remaining.ToString("0.0"), AimColor.WithAlpha(0.96f));
-            }
         }
         else
         {
-            SetCriticalPulse(0f);
             SetModelFireWindow(false);
-            SetCountdownText(remaining.ToString("0.0"), AimColor.WithAlpha(0.96f));
+
+            if (uiEnabled)
+            {
+                SetCriticalPulse(0f);
+                SetRemainingCountdown(remaining);
+            }
         }
 
         if (progress >= 1f)
         {
             state = WarningState.Idle;
-            fill.fillAmount = 1f;
             SetModelFireWindow(false);
 
-            if (IsUiFireWindowEnabled())
+            if (uiEnabled)
             {
+                fill.fillAmount = 1f;
                 SetCountdownText("NOW", FiredColor);
                 SetCriticalPulse(0.85f);
             }
@@ -382,7 +481,13 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
 
     private void UpdatePreAim()
     {
-        float danger = GetPreAimDanger();
+        if (Time.time >= nextPreAimCheckTime)
+        {
+            cachedPreAimDanger = GetPreAimDanger();
+            nextPreAimCheckTime = Time.time + PreAimCheckInterval;
+        }
+
+        float danger = cachedPreAimDanger;
         lastPreAimAmount = Mathf.MoveTowards(lastPreAimAmount, danger, Time.deltaTime * 4f);
 
         if (lastPreAimAmount <= 0.01f)
@@ -419,14 +524,21 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
         Vector3 playerCameraPosition = localPlayer.gameplayCamera.transform.position;
         Vector3 shotgunPosition = nutcracker.gun.shotgunRayPoint.position;
         Vector3 toPlayer = playerCameraPosition - shotgunPosition;
-        float distance = toPlayer.magnitude;
         float maxDistance = GetPreAimMaxDistance();
-        if (maxDistance <= 0f || distance > maxDistance)
+        if (maxDistance <= 0f || toPlayer.sqrMagnitude > maxDistance * maxDistance)
         {
             return 0f;
         }
 
-        if (Vector3.Angle(nutcracker.gun.shotgunRayPoint.forward, toPlayer) > 35f)
+        float distance = toPlayer.magnitude;
+        if (distance <= 0.001f)
+        {
+            return 0f;
+        }
+
+        Vector3 toPlayerDirection = toPlayer / distance;
+        float aimDot = Vector3.Dot(nutcracker.gun.shotgunRayPoint.forward, toPlayerDirection);
+        if (aimDot < PreAimMinimumDot)
         {
             return 0f;
         }
@@ -437,7 +549,7 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
         }
 
         float distanceFactor = 1f - Mathf.Clamp01(distance / maxDistance);
-        float angleFactor = 1f - Mathf.Clamp01(Vector3.Angle(nutcracker.gun.shotgunRayPoint.forward, toPlayer) / 35f);
+        float angleFactor = Mathf.InverseLerp(PreAimMinimumDot, 1f, aimDot);
         return Mathf.Clamp01(0.2f + distanceFactor * 0.35f + angleFactor * 0.45f);
     }
 
@@ -481,9 +593,37 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
             return;
         }
 
-        countdownText.enabled = !string.IsNullOrEmpty(text);
-        countdownText.text = text ?? string.Empty;
+        bool textEnabled = !string.IsNullOrEmpty(text);
+        string nextText = text ?? string.Empty;
+
+        if (countdownText.enabled != textEnabled)
+        {
+            countdownText.enabled = textEnabled;
+        }
+
+        if (countdownText.text != nextText)
+        {
+            countdownText.text = nextText;
+        }
+
         countdownText.color = color;
+    }
+
+    private void SetRemainingCountdown(float remaining)
+    {
+        int tenths = Mathf.Clamp(Mathf.RoundToInt(remaining * 10f), 0, CountdownLabels.Length - 1);
+        SetCountdownText(CountdownLabels[tenths], AimColor.WithAlpha(0.96f));
+    }
+
+    private static string[] CreateCountdownLabels()
+    {
+        string[] labels = new string[21];
+        for (int i = 0; i < labels.Length; i++)
+        {
+            labels[i] = (i * 0.1f).ToString("0.0");
+        }
+
+        return labels;
     }
 
     private void SetCriticalPulse(float alpha)

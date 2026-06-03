@@ -2,6 +2,17 @@
 
 All notable changes to Nutcracker Fire Warning are documented in this file.
 
+## 1.0.4
+
+- Added `EnableMod` as a default-on master enable option.
+- Reduced idle overhead by delaying warning object creation until aiming, reloading, or pre-aim danger tracking is relevant.
+- Replaced per-frame reflection value reads with cached Harmony field references.
+- Removed `GetType().Name` renderer checks and switched to strong renderer type checks.
+- Reduced pre-aim danger checks by throttling line-of-sight tests and using cheaper angle filtering.
+- Reduced countdown text allocations by caching countdown labels.
+- Cached eligible model renderers for screen-box bounds and mesh warning updates.
+- Increased fallback monitor defaults to reduce scan frequency.
+
 ## 1.0.3
 
 - Fixed `EnableUiFireWindow=false` so it hides the entire world-space side warning bar instead of only disabling the final red-white pulse.

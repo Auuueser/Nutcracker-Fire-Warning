@@ -4,6 +4,8 @@ namespace NutcrackerShotUI;
 
 internal static class NutcrackerShotConfig
 {
+    public static ConfigEntry<bool> EnableMod { get; private set; }
+
     public static ConfigEntry<bool> EnableUiFireWindow { get; private set; }
 
     public static ConfigEntry<bool> EnableModelOutlineFireWindow { get; private set; }
@@ -38,6 +40,12 @@ internal static class NutcrackerShotConfig
 
     public static void Bind(ConfigFile config)
     {
+        EnableMod = config.Bind(
+            "General",
+            "EnableMod",
+            true,
+            "Enable Nutcracker Fire Warning. When disabled, the plugin does not create or update warning UI, model warnings, or fallback scans.");
+
         EnableUiFireWindow = config.Bind(
             "Warnings",
             "EnableUiFireWindow",
@@ -113,13 +121,13 @@ internal static class NutcrackerShotConfig
         MonitorActiveScanInterval = config.Bind(
             "Performance",
             "MonitorActiveScanInterval",
-            0.1f,
+            0.5f,
             "Fallback monitor scan interval while Nutcrackers are present.");
 
         MonitorIdleScanInterval = config.Bind(
             "Performance",
             "MonitorIdleScanInterval",
-            0.75f,
+            2f,
             "Fallback monitor scan interval while no Nutcrackers are present.");
 
         EnableDebugLogs = config.Bind(
@@ -133,6 +141,11 @@ internal static class NutcrackerShotConfig
             "DumpModelAudit",
             false,
             "Log Nutcracker renderer and mesh names/counts once when the model outline is built.");
+    }
+
+    public static bool IsModEnabled()
+    {
+        return EnableMod == null || EnableMod.Value;
     }
 }
 
