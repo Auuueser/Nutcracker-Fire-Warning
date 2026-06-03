@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>NutcrackerFireWarning.Tests</AssemblyName>
+    <ImplicitUsings>false</ImplicitUsings>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NutcrackerFireWarning\NutcrackerFireWarning.csproj" />
+  </ItemGroup>
+</Project>

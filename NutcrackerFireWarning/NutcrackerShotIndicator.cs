@@ -43,6 +43,7 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
     private float cachedPreAimDanger;
     private bool observedAimingLastFrame;
     private bool observedReloadingLastFrame;
+    private NutcrackerCombatState lastCombatState;
 
     public static NutcrackerShotIndicator For(NutcrackerEnemyAI nutcracker)
     {
@@ -93,6 +94,11 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
         }
 
         if (combatState.AimingGun || combatState.ReloadingGun)
+        {
+            return true;
+        }
+
+        if (IsModelStateTintEnabled() && IsChaseTintCandidate(nutcracker, combatState))
         {
             return true;
         }
@@ -202,7 +208,7 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
         {
             state = WarningState.Idle;
             SetCriticalPulse(0f);
-            SetModelFireWindow(false);
+            UpdateModelWarningPhase(fireWindowActive: false);
         }
 
         if (reloadingGun && !observedReloadingLastFrame && state != WarningState.Aiming)
@@ -216,6 +222,7 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
 
     public void ObserveCombatState(NutcrackerCombatState combatState)
     {
+        lastCombatState = combatState;
         ObserveCombatState(combatState.AimingGun, combatState.ReloadingGun, combatState.TimeSinceFiringGun, combatState.AimDuration);
     }
 
@@ -239,7 +246,7 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
 
     private void OnDisable()
     {
-        SetModelFireWindow(false);
+        SetModelWarningPhase(ModelWarningPhase.None);
     }
 
     private void LateUpdate()
@@ -378,7 +385,7 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
                 else
                 {
                     lastPreAimAmount = 0f;
-                    SetModelFireWindow(false);
+                    UpdateModelWarningPhase(fireWindowActive: false);
                 }
                 break;
         }
@@ -406,7 +413,7 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
             HideUiElements();
         }
 
-        SetModelFireWindow(false);
+        UpdateModelWarningPhase(fireWindowActive: false);
 
         if (progress >= 1f)
         {
@@ -440,7 +447,7 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
 
         if (remaining <= fireWindowSeconds)
         {
-            SetModelFireWindow(ShouldShowModelFireWindow());
+            UpdateModelWarningPhase(fireWindowActive: true);
 
             if (uiEnabled)
             {
@@ -451,7 +458,7 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
         }
         else
         {
-            SetModelFireWindow(false);
+            UpdateModelWarningPhase(fireWindowActive: false);
 
             if (uiEnabled)
             {
@@ -463,7 +470,7 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
         if (progress >= 1f)
         {
             state = WarningState.Idle;
-            SetModelFireWindow(false);
+            UpdateModelWarningPhase(fireWindowActive: false);
 
             if (uiEnabled)
             {
@@ -496,7 +503,7 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
             fill.fillAmount = 0f;
             SetCountdownText(null, Color.white);
             SetCriticalPulse(0f);
-            SetModelFireWindow(false);
+            UpdateModelWarningPhase(fireWindowActive: false);
             return;
         }
 
@@ -505,7 +512,7 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
         fill.fillAmount = Mathf.Clamp01(lastPreAimAmount);
         SetCountdownText("!", PreAimColor.WithAlpha(0.92f));
         SetCriticalPulse(0f);
-        SetModelFireWindow(false);
+        UpdateModelWarningPhase(fireWindowActive: false);
     }
 
     private float GetPreAimDanger()
@@ -638,14 +645,25 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
         criticalPulse.color = color;
     }
 
-    private void SetModelFireWindow(bool active)
+    private void SetModelWarningPhase(ModelWarningPhase phase)
     {
-        modelOutline?.Update(active);
+        modelOutline?.Update(phase);
     }
 
-    private bool ShouldShowModelFireWindow()
+    private void UpdateModelWarningPhase(bool fireWindowActive)
     {
-        if (!IsModelFireWindowEnabled())
+        bool modelEnabled = IsAnyModelWarningEnabled();
+        bool stateTintEnabled = IsModelStateTintEnabled();
+        bool showByDistanceAndCamera = modelEnabled && ShouldShowModelWarningByDistanceAndCamera();
+        bool fireWindowVisible = fireWindowActive && showByDistanceAndCamera && (IsModelFireWindowEnabled() || stateTintEnabled);
+        bool chaseVisible = showByDistanceAndCamera && stateTintEnabled && IsChaseTintCandidate(nutcracker, lastCombatState);
+
+        SetModelWarningPhase(NutcrackerModelWarningPhaseSelector.Select(modelEnabled, stateTintEnabled, fireWindowVisible, chaseVisible));
+    }
+
+    private bool ShouldShowModelWarningByDistanceAndCamera()
+    {
+        if (!IsAnyModelWarningEnabled())
         {
             return false;
         }
@@ -685,6 +703,28 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
         return true;
     }
 
+    private static bool IsChaseTintCandidate(NutcrackerEnemyAI nutcracker, NutcrackerCombatState combatState)
+    {
+        if (nutcracker == null || nutcracker.isEnemyDead || nutcracker.currentBehaviourStateIndex != 2)
+        {
+            return false;
+        }
+
+        if (combatState.ReloadingGun || nutcracker.gun == null || nutcracker.gun.shellsLoaded <= 0)
+        {
+            return false;
+        }
+
+        if (combatState.AimingGun)
+        {
+            return true;
+        }
+
+        return nutcracker.lastPlayerSeenMoving != -1
+            && nutcracker.targetPlayer != null
+            && nutcracker.movingTowardsTargetPlayer;
+    }
+
     private static bool IsUiFireWindowEnabled()
     {
         return NutcrackerShotConfig.EnableUiFireWindow == null || NutcrackerShotConfig.EnableUiFireWindow.Value;
@@ -693,6 +733,16 @@ internal sealed class NutcrackerShotIndicator : MonoBehaviour
     private static bool IsModelFireWindowEnabled()
     {
         return NutcrackerShotConfig.EnableModelOutlineFireWindow == null || NutcrackerShotConfig.EnableModelOutlineFireWindow.Value;
+    }
+
+    private static bool IsModelStateTintEnabled()
+    {
+        return NutcrackerShotConfig.EnableModelStateTint != null && NutcrackerShotConfig.EnableModelStateTint.Value;
+    }
+
+    private static bool IsAnyModelWarningEnabled()
+    {
+        return IsModelFireWindowEnabled() || IsModelStateTintEnabled();
     }
 
     private static float GetFireWindowSeconds()

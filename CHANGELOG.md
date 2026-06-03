@@ -2,6 +2,15 @@
 
 All notable changes to Nutcracker Fire Warning are documented in this file.
 
+## 1.0.5
+
+- Added optional model state tint warnings: white while a Nutcracker is chasing a target, red during the final fire window.
+- Kept the existing world-space UI warning and red-white model pulse/outline warning available through config.
+- Added `EnableModelStateTint`, chase tint alpha/intensity, and fire-window tint alpha/intensity config entries.
+- Added automatic Simplified Chinese config descriptions when LC Chinese Project is detected.
+- LC Chinese Project detection uses the stable plugin GUID or installed DLL path and does not depend on version numbers.
+- Added lightweight source tests for config language detection and model warning phase selection.
+
 ## 1.0.4
 
 - Added `EnableMod` as a default-on master enable option.

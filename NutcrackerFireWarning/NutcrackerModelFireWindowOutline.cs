@@ -54,9 +54,9 @@ internal sealed class NutcrackerModelFireWindowOutline
         }
     }
 
-    public void Update(bool active)
+    public void Update(ModelWarningPhase phase)
     {
-        if (!active || nutcracker == null)
+        if (phase == ModelWarningPhase.None || nutcracker == null)
         {
             loggedMeshVisible = false;
             loggedScreenVisible = false;
@@ -65,25 +65,52 @@ internal sealed class NutcrackerModelFireWindowOutline
             return;
         }
 
+        bool stateTintActive = IsModelStateTintEnabled();
+        bool stateTintVisible = stateTintActive && UpdateStateTint(phase);
+        bool fireOutlineActive = phase == ModelWarningPhase.FireWindow && IsModelFireWindowEnabled();
+
+        if (!fireOutlineActive)
+        {
+            loggedScreenVisible = false;
+            SetCloneShellVisible(false);
+            SetScreenVisible(false);
+            if (!stateTintVisible)
+            {
+                RestoreSourcePulses();
+            }
+
+            return;
+        }
+
         if (GetMode() == ModelOutlineMode.ScreenBox)
         {
-            SetMeshVisible(false);
+            SetCloneShellVisible(false);
+            if (!stateTintVisible)
+            {
+                RestoreSourcePulses();
+            }
+
             UpdateScreenBox();
         }
         else
         {
             SetScreenVisible(false);
-            UpdateMeshSilhouette();
+            UpdateMeshSilhouette(includeSourcePulse: !stateTintActive);
         }
     }
 
-    private void UpdateMeshSilhouette()
+    private void UpdateMeshSilhouette(bool includeSourcePulse)
     {
         EnsureMeshClones();
 
-        if (meshClones.Count == 0 && sourcePulses.Count == 0)
+        if (meshClones.Count == 0 && (!includeSourcePulse || sourcePulses.Count == 0))
         {
-            SetMeshVisible(false);
+            SetCloneShellVisible(false);
+            if (includeSourcePulse)
+            {
+                RestoreSourcePulses();
+            }
+
             return;
         }
 
@@ -97,11 +124,14 @@ internal sealed class NutcrackerModelFireWindowOutline
         int visibleCount = 0;
         int pulseCount = 0;
 
-        for (int i = 0; i < sourcePulses.Count; i++)
+        if (includeSourcePulse)
         {
-            if (sourcePulses[i].Apply(color, pulseIntensity))
+            for (int i = 0; i < sourcePulses.Count; i++)
             {
-                pulseCount++;
+                if (sourcePulses[i].Apply(color, pulseIntensity))
+                {
+                    pulseCount++;
+                }
             }
         }
 
@@ -115,7 +145,12 @@ internal sealed class NutcrackerModelFireWindowOutline
 
         if (visibleCount == 0 && pulseCount == 0)
         {
-            SetMeshVisible(false);
+            SetCloneShellVisible(false);
+            if (includeSourcePulse)
+            {
+                RestoreSourcePulses();
+            }
+
             return;
         }
 
@@ -155,7 +190,7 @@ internal sealed class NutcrackerModelFireWindowOutline
                 }
             }
 
-            if (ShouldUseSourcePulse())
+            if (ShouldUseSourcePulse() || IsModelStateTintEnabled())
             {
                 SourceRendererPulse pulse = SourceRendererPulse.TryCreate(renderer);
                 if (pulse != null)
@@ -174,6 +209,36 @@ internal sealed class NutcrackerModelFireWindowOutline
         {
             DumpModelAudit();
         }
+    }
+
+    private bool UpdateStateTint(ModelWarningPhase phase)
+    {
+        EnsureMeshClones();
+
+        if (sourcePulses.Count == 0)
+        {
+            return false;
+        }
+
+        Color color = GetStateTintColor(phase);
+        float intensity = phase == ModelWarningPhase.FireWindow ? GetFireWindowTintIntensity() : GetChaseTintIntensity();
+        int pulseCount = 0;
+
+        for (int i = 0; i < sourcePulses.Count; i++)
+        {
+            if (sourcePulses[i].Apply(color, intensity))
+            {
+                pulseCount++;
+            }
+        }
+
+        if (IsDebugLoggingEnabled() && pulseCount > 0 && !loggedMeshVisible)
+        {
+            loggedMeshVisible = true;
+            Plugin.Log.LogInfo($"Nutcracker #{nutcracker.thisEnemyIndex} model state tint visible. Phase={phase} SourcePulses={pulseCount}");
+        }
+
+        return pulseCount > 0;
     }
 
     private void DumpModelAudit()
@@ -239,17 +304,27 @@ internal sealed class NutcrackerModelFireWindowOutline
 
     private void SetMeshVisible(bool visible)
     {
+        SetCloneShellVisible(visible);
+
+        if (!visible)
+        {
+            RestoreSourcePulses();
+        }
+    }
+
+    private void SetCloneShellVisible(bool visible)
+    {
         for (int i = 0; i < meshClones.Count; i++)
         {
             meshClones[i].SetVisible(visible);
         }
+    }
 
-        if (!visible)
+    private void RestoreSourcePulses()
+    {
+        for (int i = 0; i < sourcePulses.Count; i++)
         {
-            for (int i = 0; i < sourcePulses.Count; i++)
-            {
-                sourcePulses[i].Restore();
-            }
+            sourcePulses[i].Restore();
         }
     }
 
@@ -618,6 +693,26 @@ internal sealed class NutcrackerModelFireWindowOutline
         return mode == ModelPulseMode.CloneShell || mode == ModelPulseMode.Both;
     }
 
+    private static bool IsModelFireWindowEnabled()
+    {
+        return NutcrackerShotConfig.EnableModelOutlineFireWindow == null || NutcrackerShotConfig.EnableModelOutlineFireWindow.Value;
+    }
+
+    private static bool IsModelStateTintEnabled()
+    {
+        return NutcrackerShotConfig.EnableModelStateTint != null && NutcrackerShotConfig.EnableModelStateTint.Value;
+    }
+
+    private static Color GetStateTintColor(ModelWarningPhase phase)
+    {
+        if (phase == ModelWarningPhase.FireWindow)
+        {
+            return new Color(1f, 0.02f, 0.02f, GetFireWindowTintAlpha());
+        }
+
+        return new Color(1f, 1f, 1f, GetChaseTintAlpha());
+    }
+
     private static float GetPulseIntensity()
     {
         return NutcrackerShotConfig.ModelPulseIntensity == null
@@ -630,6 +725,34 @@ internal sealed class NutcrackerModelFireWindowOutline
         return NutcrackerShotConfig.ModelPulseAlpha == null
             ? 0.92f
             : Mathf.Clamp01(NutcrackerShotConfig.ModelPulseAlpha.Value);
+    }
+
+    private static float GetChaseTintAlpha()
+    {
+        return NutcrackerShotConfig.ModelChaseTintAlpha == null
+            ? 0.58f
+            : Mathf.Clamp01(NutcrackerShotConfig.ModelChaseTintAlpha.Value);
+    }
+
+    private static float GetChaseTintIntensity()
+    {
+        return NutcrackerShotConfig.ModelChaseTintIntensity == null
+            ? 1.8f
+            : Mathf.Clamp(NutcrackerShotConfig.ModelChaseTintIntensity.Value, 0f, 12f);
+    }
+
+    private static float GetFireWindowTintAlpha()
+    {
+        return NutcrackerShotConfig.ModelFireWindowTintAlpha == null
+            ? 0.96f
+            : Mathf.Clamp01(NutcrackerShotConfig.ModelFireWindowTintAlpha.Value);
+    }
+
+    private static float GetFireWindowTintIntensity()
+    {
+        return NutcrackerShotConfig.ModelFireWindowTintIntensity == null
+            ? 5f
+            : Mathf.Clamp(NutcrackerShotConfig.ModelFireWindowTintIntensity.Value, 0f, 12f);
     }
 
     private static bool IsDebugLoggingEnabled()

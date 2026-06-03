@@ -4,19 +4,21 @@ Nutcracker Fire Warning is a BepInEx plugin for Lethal Company that provides
 client-side shotgun timing warnings for Nutcracker enemies.
 
 The plugin reads the Nutcracker's current aiming state and shotgun timing, then
-displays warnings through a world-space side bar and an optional red-white model
-pulse. It does not change enemy behavior, weapon damage, networking, or game
-balance.
+displays warnings through a world-space side bar, optional red-white model pulse,
+and optional model state tint. It does not change enemy behavior, weapon damage,
+networking, or game balance.
 
 ## Features
 
 - World-space warning bar attached beside each Nutcracker.
 - Countdown during Nutcracker aiming.
 - Red-white final fire-window pulse.
-- Optional model warning for close-range visibility.
+- Optional Nutcracker model state tint: white while chasing, red during the final fire window.
+- Optional model red-white pulse or outline warning for close-range visibility.
 - Optional screen-space fallback rectangle.
 - Yellow pre-aim danger indicator when the local player is in a dangerous shotgun line.
 - Configurable warning distances, pulse intensity, fire-window timing, and fallback scan intervals.
+- English config descriptions by default, with automatic Simplified Chinese descriptions when LC Chinese Project is detected.
 
 ## Timing
 
@@ -67,11 +69,16 @@ BepInEx\config\aueser.lethalcompany.nutcrackerfirewarning.cfg
 
 - `EnableMod`: Enables Nutcracker Fire Warning as a whole. When disabled, warning UI, model warnings, and fallback scans stop running.
 - `EnableUiFireWindow`: Enables the world-space side warning bar, including countdown, `FIRE` pulse, reload bar, and pre-aim danger bar.
-- `EnableModelOutlineFireWindow`: Enables the Nutcracker model warning.
+- `EnableModelOutlineFireWindow`: Enables the legacy Nutcracker model fire-window pulse or outline warning.
+- `EnableModelStateTint`: Tints the Nutcracker model white while chasing a target and red during the final fire window.
 - `ModelOutlineMode`: Selects `MeshSilhouette` or `ScreenBox`.
 - `ModelPulseMode`: Selects `SourcePulse`, `CloneShell`, or `Both`.
 - `ModelPulseIntensity`: Controls model pulse emission intensity.
 - `ModelPulseAlpha`: Controls model pulse color alpha.
+- `ModelChaseTintAlpha`: Controls white chase-state model tint alpha.
+- `ModelChaseTintIntensity`: Controls white chase-state model tint emission intensity.
+- `ModelFireWindowTintAlpha`: Controls red fire-window model tint alpha.
+- `ModelFireWindowTintIntensity`: Controls red fire-window model tint emission intensity.
 - `ModelWarningMaxDistance`: Limits model warning distance. Set to `0` or lower to disable distance filtering.
 - `ModelWarningRequireCameraVisible`: Requires the Nutcracker to be inside the local camera viewport.
 - `ModelOutlineWidth`: Controls ScreenBox line width and CloneShell expansion width.
@@ -91,6 +98,16 @@ BepInEx\config\aueser.lethalcompany.nutcrackerfirewarning.cfg
 
 Debug logging is intended for troubleshooting and should usually be disabled
 during normal play.
+
+### Config Language
+
+Config entry names remain stable in English to avoid creating duplicate sections
+after upgrades. Config descriptions are written in English by default.
+
+When LC Chinese Project is installed, new config files and newly added config
+entries use Simplified Chinese descriptions. Detection checks the stable plugin
+GUID `cn.codex.v81testchn` or the installed `V81TestChn.dll` path; it does not
+depend on the localization mod version number.
 
 ## Notes
 
